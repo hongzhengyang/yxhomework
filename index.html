@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2026/9/8 HOMEWORK · yxhomework</title>
   <style>
-    /* === 维基风格 (与之前一致) === */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
@@ -196,6 +195,93 @@
       .wiki-body p { font-size: 1rem; }
       .wiki-body table { font-size: 0.88rem; }
     }
+    .submit-section {
+      margin: 2.5rem 0 1.5rem 0;
+      padding: 1.8rem 2rem;
+      background: #f8faff;
+      border-radius: 12px;
+      border: 2px dashed #3b6ea5;
+    }
+    .submit-section h3 {
+      font-size: 1.3rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #1a2b3c;
+    }
+    .submit-section textarea {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 120px;
+      background: white;
+      transition: border-color 0.2s;
+    }
+    .submit-section textarea:focus {
+      outline: none;
+      border-color: #3b6ea5;
+      box-shadow: 0 0 0 3px rgba(59, 110, 165, 0.15);
+    }
+    .submit-section .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .submit-section .btn-submit {
+      background: #3b6ea5;
+      color: white;
+      border: none;
+      padding: 0.6rem 2rem;
+      border-radius: 30px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .submit-section .btn-submit:hover {
+      background: #2a5490;
+    }
+    .submit-section .btn-submit:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+    .submit-section .btn-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .submit-section .btn-status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .submit-section .btn-status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .submit-section .btn-status.loading {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .submit-section label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+      color: #2a3b4c;
+    }
+    .submit-section .hint {
+      font-size: 0.85rem;
+      color: #777;
+      margin-top: 0.3rem;
+    }
   </style>
 </head>
 <body>
@@ -211,23 +297,136 @@
     </header>
 
     <main class="wiki-body">
-      <!-- Markdown 转换内容 -->
       <h1 id="98-homework">9/8 HOMEWORK</h1>
-<h2 id="_1">语文</h2>
-<ol>
-<li>
-<p>伴你学夹册一单元（周五交）</p>
-</li>
-<li>
-<p>伴你学《草原》（周四交（? ）</p>
-</li>
-</ol>
+      <h2 id="_1">语文</h2>
+      <ol>
+        <li>伴你学夹册一单元（周五交）</li>
+        <li>伴你学《草原》（周四交（? ）</li>
+      </ol>
     </main>
+
+    <section class="submit-section">
+      <h3>提交作业更新申请</h3>
+      <p style="color: #555; margin-bottom: 1rem; font-size: 0.95rem;">
+        在下方输入你想添加的作业内容，提交后会自动追加到页面末尾。
+      </p>
+      <form id="updateForm">
+        <label for="newContent">新内容（支持HTML标签）</label>
+        <textarea id="newContent" placeholder="例如：&lt;li&gt;数学：练习册第10页&lt;/li&gt;"></textarea>
+        <div class="btn-group">
+          <button type="submit" class="btn-submit" id="submitBtn">提交更新</button>
+          <span id="statusMessage" class="btn-status" style="display: none;"></span>
+        </div>
+        <div class="hint">提交的内容会追加到页面现有内容的末尾，不会覆盖原有内容。</div>
+      </form>
+    </section>
 
     <footer class="wiki-footer">
       <span>2026-09-08 · Powered by yhzakioi</span>
-      
     </footer>
   </div>
+
+  <script>
+    (function() {
+      const GITHUB_TOKEN = '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';
+      const OWNER = 'hongzhengyang';
+      const REPO = 'yxhomework';
+      const FILE_PATH = 'index.html';
+
+      const form = document.getElementById('updateForm');
+      const textarea = document.getElementById('newContent');
+      const submitBtn = document.getElementById('submitBtn');
+      const statusMsg = document.getElementById('statusMessage');
+
+      function setStatus(text, type) {
+        statusMsg.style.display = 'inline-flex';
+        statusMsg.textContent = text;
+        statusMsg.className = 'btn-status ' + type;
+      }
+
+      function hideStatus() {
+        statusMsg.style.display = 'none';
+      }
+
+      async function updateIndexHtml(newContent) {
+        const apiBase = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
+
+        try {
+          const getRes = await fetch(apiBase, {
+            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+          });
+
+          if (!getRes.ok) {
+            throw new Error(`获取文件失败 (HTTP ${getRes.status})`);
+          }
+
+          const fileData = await getRes.json();
+          const sha = fileData.sha;
+          const currentContent = decodeURIComponent(escape(atob(fileData.content)));
+
+          const updatedContent = currentContent + '\n' + newContent;
+
+          const payload = {
+            message: '通过页面提交申请，追加了作业内容',
+            content: btoa(unescape(encodeURIComponent(updatedContent))),
+            sha: sha
+          };
+
+          const putRes = await fetch(apiBase, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `token ${GITHUB_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!putRes.ok) {
+            const errData = await putRes.json();
+            throw new Error(`更新失败 (HTTP ${putRes.status}): ${errData.message || '未知错误'}`);
+          }
+
+          return { success: true };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const content = textarea.value.trim();
+        if (!content) {
+          setStatus('请填写要更新的内容', 'error');
+          return;
+        }
+
+        if (!confirm('确认要追加内容到 index.html 吗？')) {
+          return;
+        }
+
+        submitBtn.disabled = true;
+        setStatus('提交中...', 'loading');
+
+        const result = await updateIndexHtml(content);
+
+        if (result.success) {
+          setStatus('提交成功！页面将在1-2分钟后更新', 'success');
+          textarea.value = '';
+          setTimeout(() => {
+            if (confirm('更新已提交，是否立即刷新页面查看效果？')) {
+              location.reload();
+            }
+          }, 3000);
+        } else {
+          setStatus('失败：' + result.error, 'error');
+        }
+
+        submitBtn.disabled = false;
+      });
+
+      textarea.addEventListener('input', hideStatus);
+    })();
+  </script>
 </body>
 </html>
