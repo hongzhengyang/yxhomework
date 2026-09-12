@@ -297,12 +297,19 @@
     </header>
 
     <main class="wiki-body">
-      <h1 id="98-homework">9/8 HOMEWORK</h1>
-      <h2 id="_1">语文</h2>
-      <ol>
-        <li>伴你学夹册一单元（周五交）</li>
-        <li>伴你学《草原》（周四交（? ）</li>
-      </ol>
+      <h1 id="99-homework">9/9 HOMEWORK</h1>
+<h2 id="_1">语文</h2>
+<ol>
+<li>
+<p>伴你学一单元</p>
+</li>
+<li>
+<p>作文</p>
+</li>
+<li>
+<p>词表（下周一交，下周三考）</p>
+</li>
+</ol>
     </main>
 
     <section class="submit-section">
@@ -322,30 +329,30 @@
     </section>
 
     <footer class="wiki-footer">
-      <span>2026-09-08 · Powered by yhzakioi</span>
+      <span>2026-09-12 · Powered by yhzakioi</span>
     </footer>
   </div>
 
   <script>
     (function() {
-      const GITHUB_TOKEN = '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';
-      const OWNER = 'hongzhengyang';
-      const REPO = 'yxhomework';
-      const FILE_PATH = 'index.html';
+      const GITHUB_TOKEN = "";
+      const OWNER = "hongzhengyang";
+      const REPO = "yxhomework";
+      const FILE_PATH = "index.html";
 
-      const form = document.getElementById('updateForm');
-      const textarea = document.getElementById('newContent');
-      const submitBtn = document.getElementById('submitBtn');
-      const statusMsg = document.getElementById('statusMessage');
+      const form = document.getElementById("updateForm");
+      const textarea = document.getElementById("newContent");
+      const submitBtn = document.getElementById("submitBtn");
+      const statusMsg = document.getElementById("statusMessage");
 
       function setStatus(text, type) {
-        statusMsg.style.display = 'inline-flex';
+        statusMsg.style.display = "inline-flex";
         statusMsg.textContent = text;
-        statusMsg.className = 'btn-status ' + type;
+        statusMsg.className = "btn-status " + type;
       }
 
       function hideStatus() {
-        statusMsg.style.display = 'none';
+        statusMsg.style.display = "none";
       }
 
       async function updateIndexHtml(newContent) {
@@ -353,7 +360,7 @@
 
         try {
           const getRes = await fetch(apiBase, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            headers: { "Authorization": `token ${GITHUB_TOKEN}` }
           });
 
           if (!getRes.ok) {
@@ -364,26 +371,26 @@
           const sha = fileData.sha;
           const currentContent = decodeURIComponent(escape(atob(fileData.content)));
 
-          const updatedContent = currentContent + '\n' + newContent;
+          const updatedContent = currentContent + "\n" + newContent;
 
           const payload = {
-            message: '通过页面提交申请，追加了作业内容',
+            message: "通过页面提交申请，追加了作业内容",
             content: btoa(unescape(encodeURIComponent(updatedContent))),
             sha: sha
           };
 
           const putRes = await fetch(apiBase, {
-            method: 'PUT',
+            method: "PUT",
             headers: {
-              'Authorization': `token ${GITHUB_TOKEN}`,
-              'Content-Type': 'application/json'
+              "Authorization": `token ${GITHUB_TOKEN}`,
+              "Content-Type": "application/json"
             },
             body: JSON.stringify(payload)
           });
 
           if (!putRes.ok) {
             const errData = await putRes.json();
-            throw new Error(`更新失败 (HTTP ${putRes.status}): ${errData.message || '未知错误'}`);
+            throw new Error(`更新失败 (HTTP ${putRes.status}): ${errData.message || "未知错误"}`);
           }
 
           return { success: true };
@@ -392,40 +399,40 @@
         }
       }
 
-      form.addEventListener('submit', async function(e) {
+      form.addEventListener("submit", async function(e) {
         e.preventDefault();
 
         const content = textarea.value.trim();
         if (!content) {
-          setStatus('请填写要更新的内容', 'error');
+          setStatus("请填写要更新的内容", "error");
           return;
         }
 
-        if (!confirm('确认要追加内容到 index.html 吗？')) {
+        if (!confirm("确认要追加内容到 index.html 吗？")) {
           return;
         }
 
         submitBtn.disabled = true;
-        setStatus('提交中...', 'loading');
+        setStatus("提交中...", "loading");
 
         const result = await updateIndexHtml(content);
 
         if (result.success) {
-          setStatus('提交成功！页面将在1-2分钟后更新', 'success');
-          textarea.value = '';
+          setStatus("提交成功！页面将在1-2分钟后更新", "success");
+          textarea.value = "";
           setTimeout(() => {
-            if (confirm('更新已提交，是否立即刷新页面查看效果？')) {
+            if (confirm("更新已提交，是否立即刷新页面查看效果？")) {
               location.reload();
             }
           }, 3000);
         } else {
-          setStatus('失败：' + result.error, 'error');
+          setStatus("失败：" + result.error, "error");
         }
 
         submitBtn.disabled = false;
       });
 
-      textarea.addEventListener('input', hideStatus);
+      textarea.addEventListener("input", hideStatus);
     })();
   </script>
 </body>
