@@ -113,7 +113,8 @@
     }
     .submit-section textarea,
     .submit-section input[type="password"],
-    .submit-section input[type="text"] {
+    .submit-section input[type="text"],
+    .submit-section select {
       width: 100%;
       padding: 0.8rem 1rem;
       border: 1px solid #ccc;
@@ -128,7 +129,8 @@
       min-height: 120px;
     }
     .submit-section textarea:focus,
-    .submit-section input:focus {
+    .submit-section input:focus,
+    .submit-section select:focus {
       outline: none;
       border-color: #3b6ea5;
       box-shadow: 0 0 0 3px rgba(59, 110, 165, 0.15);
@@ -209,27 +211,30 @@
 
     <main class="wiki-body" id="wikiBody">
       <h1 id="915-homework">2026/9/15 HOMEWORK</h1>
+
       <h2 id="_1">语文</h2>
       <p>4m 语文。</p>
       <ol>
         <li>拼音卷</li>
         <li>作文《变形记》<br />
         3， 伴《狼》</li>
+        <!-- INSERT_语文 -->
       </ol>
+
       <h2 id="_2">数学</h2>
       <ol>
         <li>《伴》改 &amp; P4</li>
+        <!-- INSERT_数学 -->
       </ol>
     </main>
 
     <section class="submit-section">
       <h3>提交作业更新申请</h3>
       <p style="color: #555; margin-bottom: 1rem; font-size: 0.95rem;">
-        在下方输入你想添加的作业内容，提交后会自动追加到页面末尾。
+        填写 Token、选择科目、输入内容，提交后会插入到对应科目的位置。
       </p>
 
       <form id="updateForm">
-        <!-- Token 输入 -->
         <div class="field">
           <label for="tokenInput">GitHub Personal Access Token</label>
           <input
@@ -253,11 +258,21 @@
 
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 1.4rem 0;" />
 
-        <!-- 内容输入 -->
         <div class="field">
-          <label for="newContent">新内容（支持 HTML 标签）</label>
-          <textarea id="newContent" placeholder="例如：&lt;li&gt;数学：练习册第10页&lt;/li&gt;"></textarea>
-          <div class="hint">提交的内容会追加到页面现有内容的末尾，不会覆盖原有内容。</div>
+          <label for="subjectSelect">插入到哪个科目</label>
+          <select id="subjectSelect">
+            <option value="语文">语文</option>
+            <option value="数学">数学</option>
+          </select>
+          <div class="hint">
+            对应 HTML 中的 <code>&lt;!-- INSERT_语文 --&gt;</code> / <code>&lt;!-- INSERT_数学 --&gt;</code> 锚点。
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="newContent">新内容（支持 HTML 标签，例如 <code>&lt;li&gt;背单词&lt;/li&gt;</code>）</label>
+          <textarea id="newContent" placeholder="例如：&lt&gt;数学：练习册第10页&lt;&gt;"></textarea>
+          <div class="hint">提交的内容会插入到所选科目的锚点前，不会覆盖原有内容。</div>
         </div>
 
         <div class="btn-group">
@@ -279,38 +294,31 @@
       const FILE_PATH = "index.html";
       const TOKEN_KEY = "yxhomework_github_token";
 
+      const MARKER_MAP = {
+        "语文": "<!-- INSERT_语文 -->",
+        "数学": "<!-- INSERT_数学 -->"
+      };
+
       const form = document.getElementById("updateForm");
       const textarea = document.getElementById("newContent");
       const tokenInput = document.getElementById("tokenInput");
+      const subjectSelect = document.getElementById("subjectSelect");
       const saveTokenBtn = document.getElementById("saveTokenBtn");
       const clearTokenBtn = document.getElementById("clearTokenBtn");
       const tokenState = document.getElementById("tokenState");
       const submitBtn = document.getElementById("submitBtn");
       const statusMsg = document.getElementById("statusMessage");
 
-      // ---------- Token 管理 ----------
       function loadToken() {
-        try {
-          return localStorage.getItem(TOKEN_KEY) || "";
-        } catch (e) {
-          return "";
-        }
+        try { return localStorage.getItem(TOKEN_KEY) || ""; }
+        catch (e) { return ""; }
       }
-
       function saveToken(token) {
-        try {
-          localStorage.setItem(TOKEN_KEY, token);
-        } catch (e) {
-          // localStorage 不可用时忽略
-        }
+        try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
       }
-
       function clearToken() {
-        try {
-          localStorage.removeItem(TOKEN_KEY);
-        } catch (e) {}
+        try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
       }
-
       function refreshTokenState() {
         const t = loadToken();
         if (t) {
@@ -326,43 +334,37 @@
 
       saveTokenBtn.addEventListener("click", function() {
         const t = tokenInput.value.trim();
-        if (!t) {
-          alert("请先填写 Token");
-          return;
-        }
+        if (!t) { alert("请先填写 Token"); return; }
         saveToken(t);
         refreshTokenState();
         alert("Token 已保存到本地浏览器。");
       });
-
       clearTokenBtn.addEventListener("click", function() {
         if (!confirm("确定要清除本地保存的 Token 吗？")) return;
         clearToken();
         refreshTokenState();
       });
 
-      // ---------- 状态提示 ----------
       function setStatus(text, type) {
         statusMsg.style.display = "inline-flex";
         statusMsg.textContent = text;
         statusMsg.className = "btn-status " + type;
       }
+      function hideStatus() { statusMsg.style.display = "none"; }
 
-      function hideStatus() {
-        statusMsg.style.display = "none";
-      }
-
-      // ---------- Base64 编解码（支持中文）----------
       function b64EncodeUnicode(str) {
         return btoa(unescape(encodeURIComponent(str)));
       }
-
       function b64DecodeUnicode(str) {
         return decodeURIComponent(escape(atob(str)));
       }
 
-      // ---------- 调用 GitHub API ----------
-      async function updateIndexHtml(newContent, token) {
+      async function updateIndexHtml(newContent, token, subject) {
+        const marker = MARKER_MAP[subject];
+        if (!marker) {
+          return { success: false, error: "未知科目：" + subject };
+        }
+
         const apiBase = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
         const headers = {
           "Authorization": `Bearer ${token}`,
@@ -370,21 +372,15 @@
           "X-GitHub-Api-Version": "2022-11-28"
         };
 
-        // 1. 获取当前文件
         let getRes;
         try {
           getRes = await fetch(apiBase, { headers });
         } catch (e) {
           return { success: false, error: "网络错误：" + e.message };
         }
-
         if (!getRes.ok) {
-          if (getRes.status === 401) {
-            return { success: false, error: "401 未授权：Token 无效或已被撤销，请重新生成并保存。" };
-          }
-          if (getRes.status === 404) {
-            return { success: false, error: "404 找不到文件或仓库，请检查 OWNER/REPO/FILE_PATH 以及 Token 权限。" };
-          }
+          if (getRes.status === 401) return { success: false, error: "401 未授权：Token 无效或已被撤销，请重新生成并保存。" };
+          if (getRes.status === 404) return { success: false, error: "404 找不到文件或仓库，请检查 OWNER/REPO/FILE_PATH 以及 Token 权限。" };
           return { success: false, error: `获取文件失败 (HTTP ${getRes.status})` };
         }
 
@@ -392,24 +388,27 @@
         const sha = fileData.sha;
         const currentContent = b64DecodeUnicode(fileData.content.replace(/\n/g, ""));
 
-        // 2. 追加内容
-        const updatedContent = currentContent + "\n" + newContent;
+        const markerIndex = currentContent.indexOf(marker);
+        if (markerIndex === -1) {
+          return { success: false, error: `找不到锚点 ${marker}，请先在 index.html 中添加。` };
+        }
+
+        const before = currentContent.slice(0, markerIndex);
+        const after  = currentContent.slice(markerIndex);
+        const indent = "        ";
+        const updatedContent = before + indent + newContent.trim() + "\n" + indent + after;
 
         const payload = {
-          message: "通过页面提交申请，追加了作业内容",
+          message: `通过页面提交申请，向「${subject}」插入作业内容`,
           content: b64EncodeUnicode(updatedContent),
           sha: sha
         };
 
-        // 3. 提交更新
         let putRes;
         try {
           putRes = await fetch(apiBase, {
             method: "PUT",
-            headers: {
-              ...headers,
-              "Content-Type": "application/json"
-            },
+            headers: { ...headers, "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
         } catch (e) {
@@ -418,57 +417,38 @@
 
         if (!putRes.ok) {
           let errMsg = `HTTP ${putRes.status}`;
-          try {
-            const errData = await putRes.json();
-            errMsg = errData.message || errMsg;
-          } catch (e) {}
-          if (putRes.status === 401) {
-            return { success: false, error: "401 未授权：Token 无效或已被撤销。" };
-          }
-          if (putRes.status === 403) {
-            return { success: false, error: "403 禁止访问：Token 权限不足或触发了速率限制。" };
-          }
-          if (putRes.status === 409) {
-            return { success: false, error: "409 冲突：文件已被他人修改，请刷新页面后重试。" };
-          }
+          try { const errData = await putRes.json(); errMsg = errData.message || errMsg; } catch (e) {}
+          if (putRes.status === 401) return { success: false, error: "401 未授权：Token 无效或已被撤销。" };
+          if (putRes.status === 403) return { success: false, error: "403 禁止访问：Token 权限不足或触发了速率限制。" };
+          if (putRes.status === 409) return { success: false, error: "409 冲突：文件已被他人修改，请刷新页面后重试。" };
           return { success: false, error: "更新失败：" + errMsg };
         }
 
         return { success: true };
       }
 
-      // ---------- 表单提交 ----------
       form.addEventListener("submit", async function(e) {
         e.preventDefault();
 
         const content = textarea.value.trim();
-        if (!content) {
-          setStatus("请填写要更新的内容", "error");
-          return;
-        }
+        if (!content) { setStatus("请填写要更新的内容", "error"); return; }
 
         const token = loadToken();
-        if (!token) {
-          setStatus("请先在上方填写并保存 Token", "error");
-          return;
-        }
+        if (!token) { setStatus("请先在上方填写并保存 Token", "error"); return; }
 
-        if (!confirm("确认要追加内容到 index.html 吗？")) {
-          return;
-        }
+        const subject = subjectSelect.value;
+        if (!confirm(`确认要把内容插入到「${subject}」区域吗？`)) return;
 
         submitBtn.disabled = true;
         setStatus("提交中...", "loading");
 
-        const result = await updateIndexHtml(content, token);
+        const result = await updateIndexHtml(content, token, subject);
 
         if (result.success) {
           setStatus("提交成功！页面将在 1-2 分钟后更新", "success");
           textarea.value = "";
           setTimeout(() => {
-            if (confirm("更新已提交，是否立即刷新页面查看效果？")) {
-              location.reload();
-            }
+            if (confirm("更新已提交，是否立即刷新页面查看效果？")) location.reload();
           }, 3000);
         } else {
           setStatus("失败：" + result.error, "error");
@@ -479,11 +459,8 @@
 
       textarea.addEventListener("input", hideStatus);
 
-      // 初始化
       refreshTokenState();
     })();
   </script>
 </body>
 </html>
-
-user changer completed!
